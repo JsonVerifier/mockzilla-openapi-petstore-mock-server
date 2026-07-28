@@ -3,6 +3,5 @@
 package main
 
 import (
-	_ "github.com/mockzilla/mockzilla-codegen-template/pkg/hello_world"
 	_ "github.com/mockzilla/mockzilla-codegen-template/pkg/petstore"
 )

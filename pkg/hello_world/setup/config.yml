@@ -1,8 +1,0 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/mockzilla/mockzilla/refs/heads/main/resources/json-schema-service.json
-name: hello-world
-latency: 0ms
-cache:
-  requests: true
-#upstream:
-#  url: "https://hello-world.example"
-#  timeout: 10s
