@@ -1,4 +1,4 @@
-module github.com/mockzilla/mockzilla-codegen-template
+module github.com/JsonVerifier/mockzilla-openapi-petstore-mock-server
 
 go 1.25.3
 

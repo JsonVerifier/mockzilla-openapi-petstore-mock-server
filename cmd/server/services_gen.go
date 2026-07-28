@@ -3,5 +3,5 @@
 package main
 
 import (
-	_ "github.com/mockzilla/mockzilla-codegen-template/pkg/petstore"
+	_ "github.com/JsonVerifier/mockzilla-openapi-petstore-mock-server/pkg/petstore"
 )
