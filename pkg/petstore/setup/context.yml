@@ -1,4 +1,4 @@
 # Context definitions for mock data generation
 # Edit this file to define custom context values
 
-name: ["Fluffy", "Spot", "Rover", "Bella", "Charlie", "Max", "Luna", "Rocky", "Daisy", "Molly"]
+name: ["Byte", "Cache", "Cookie", "Patch", "Proxy", "Router", "Socket", "Token", "Widget", "Zilla"]
