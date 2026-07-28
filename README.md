@@ -1,155 +1,129 @@
-# Mockzilla Codegen Template
+# Mockzilla OpenAPI Petstore Mock Server
 
-Generate a Go mock server from OpenAPI specs with [Mockzilla](https://github.com/mockzilla/mockzilla).
+A ready-to-run Go mock server for the Swagger Petstore OpenAPI sample, generated with [Mockzilla](https://github.com/mockzilla/mockzilla).
 
-Each service is a Go package with generated handlers, embedded OpenAPI specs, and optional custom logic.
-Includes an API Explorer UI at `/api-explorer`.
+I started with the Mockzilla codegen template and turned it into a small working example instead of another blank starter repo. It generates realistic Petstore responses, validates requests against OpenAPI, includes a stable endpoint for repeatable tests, and provides a browser-based API Explorer.
 
-## Quick start
+## Run it on Windows
 
-1. Click [**Use this template**](https://github.com/mockzilla/mockzilla-codegen-template/generate) to create your own repository
-2. Add services (see below)
-3. Regenerate and discover:
-   ```bash
-   make generate && make discover
-   ```
-4. Push to main - binaries for Linux, macOS, and Windows are built automatically and published to **Releases**
+You need [Git](https://git-scm.com/download/win) and [Go 1.25.3 or newer](https://go.dev/dl/).
 
-## Adding services
+Open PowerShell:
 
-### From an OpenAPI spec
+```powershell
+git clone https://github.com/JsonVerifier/mockzilla-openapi-petstore-mock-server.git
+Set-Location .\mockzilla-openapi-petstore-mock-server
+
+go test ./...
+go run ./cmd/server
+```
+
+The server starts on `http://localhost:2200`. Keep that PowerShell window open.
+
+In a second PowerShell window:
+
+```powershell
+curl.exe http://localhost:2200/petstore/pets/featured
+```
+
+Expected response:
+
+```json
+{"name":"Pixel","tag":"featured","id":1001,"status":"available"}
+```
+
+Open `http://localhost:2200/` to use the API Explorer. Stop the server with `Ctrl+C`.
+
+To build a reusable Windows executable:
+
+```powershell
+New-Item -ItemType Directory -Force .\bin | Out-Null
+go build -o .\bin\petstore-mock.exe ./cmd/server
+.\bin\petstore-mock.exe
+```
+
+No separate installer is required.
+
+## Run it on Linux or macOS
 
 ```bash
-make service name=my-api
+git clone https://github.com/JsonVerifier/mockzilla-openapi-petstore-mock-server.git
+cd mockzilla-openapi-petstore-mock-server
+go test ./...
+go run ./cmd/server
 ```
 
-This creates `pkg/my_api/` with a scaffold. Replace `pkg/my_api/setup/openapi.yml` with your spec, then run:
+Then open `http://localhost:2200/` or test the stable endpoint:
 
 ```bash
-make generate && make discover
+curl http://localhost:2200/petstore/pets/featured
 ```
 
-### From static responses
+## Available endpoints
 
-```bash
-make service-from-static name=my-api
-```
-
-Add response files under `pkg/my_api/setup/data/` organized by method and path:
-
-```
-pkg/my_api/setup/data/
-  get/
-    users/
-      index.json            -> GET /users
-    users/{id}/
-      index.json            -> GET /users/{id}
-  post/
-    users/
-      index.json            -> POST /users
-```
-
-Then regenerate:
-
-```bash
-make generate && make discover
-```
-
-## Service structure
-
-Each service lives in `pkg/{service_name}/` with:
-
-```
-pkg/petstore/
-  setup/
-    openapi.yml             # OpenAPI specification
-    config.yml              # Latency, errors, upstream, replay, caching
-    codegen.yml             # Code generation settings
-    context.yml             # Custom values for mock data
-  generate.go               # go:generate directive
-  gen.go                    # Generated handler (do not edit)
-  service.go                # Custom logic (optional overrides)
-```
-
-## API Explorer UI
-
-The built-in UI is available at `/` (configurable in `resources/data/app.yml`).
-It lets you browse services, view specs, test endpoints, inspect request/response history, and manage replay recordings.
-
-## Local development
-
-```bash
-make build
-.build/server/server
-```
-
-See the [Mockzilla docs](https://github.com/mockzilla/mockzilla) for more options.
-
-## Release
-
-Every push to main/master generates code, builds binaries for Linux, macOS, and Windows (amd64 and arm64), 
-and publishes them to the **Releases** page. 
-Download the binary for your platform from the `latest` release and run it locally:
-
-```bash
-./your-repo-name
-```
-
-## Mockzilla workflow
-
-The included GitHub Actions workflow (`.github/workflows/mockzilla.yml`) publishes your server to [Mockzilla](https://mockzilla.org) automatically:
-
-- **Push to main/master** — builds and publishes the server to your main simulation
-- **Pull request with `Mockzilla` label** — deploys a preview simulation for the PR (torn down when the PR is closed)
-
-The `Mockzilla` label is created automatically on first push via the setup workflow.
-
-Your simulation will be available at:
-- `https://api.mockzilla.org/gh/{org}/{repo}/` — main branch
-- `https://api.mockzilla.org/gh/{org}/{repo}/pr-{n}/` — per pull request
-
-### Action inputs
-
-You can customize the action in `.github/workflows/mockzilla.yml`:
-
-```yaml
-- uses: mockzilla/actions/codegen@v1
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-    region: us-east-1        # optional — preferred AWS region, used as a hint on first deploy only
-    environment: '{"ENV":"production","DEBUG":"true"}'  # optional
-    host: api.mockzilla.net  # optional — API host for the simulation URL
-    timeout-minutes: 5       # optional — max minutes to wait for simulation to become active (default: 5)
-    delete: false            # optional — remove this repository from Mockzilla (default: false)
-```
-
-| Input | Required | Description |
+| Method | Endpoint | Behaviour |
 |---|---|---|
-| `token` | yes | `GITHUB_TOKEN` — used to verify repo identity |
-| `region` | no | Preferred AWS region (e.g. `us-east-1`, `ap-southeast-1`). Used as a hint on first deploy — if at capacity, the nearest available region is used. Has no effect after the simulation is deployed. |
-| `environment` | no | JSON object of environment variables to set in the simulation (e.g. `'{"ENV":"production"}'`). |
-| `host` | no | API host for the simulation URL (`api.mockzilla.org`, `api.mockzilla.de`, or `api.mockzilla.net`). Defaults to org setting or `api.mockzilla.org`. |
-| `timeout-minutes` | no | Max minutes the action polls for the simulation to become active. Defaults to `5`. |
-| `delete` | no | Remove this repository from Mockzilla. When set to `true`, the action skips publishing and deletes all mock APIs for this repo. Useful on the free plan to free up your slot before connecting a different repository. Defaults to `false`. |
+| `GET` | `/petstore/pets` | Returns a generated list of pets |
+| `POST` | `/petstore/pets` | Validates the request and returns a generated pet |
+| `GET` | `/petstore/pets/featured` | Always returns the same `Pixel` response |
+| `GET` | `/petstore/pets/{id}` | Returns a generated pet |
+| `DELETE` | `/petstore/pets/{id}` | Returns the OpenAPI-defined delete response |
 
-### Removing this repository from Mockzilla
+The generated endpoints are for API development and testing. They do not use a persistent database, so `POST` does not permanently add a pet and `DELETE` does not permanently remove one.
 
-On the free plan you can only have one repository connected to Mockzilla at a time. To switch to a different repo, run the action with `delete: true` on the old one first:
+## What changed from the original template
 
-```yaml
-name: mockzilla-remove
+- Removed the tracked 49 MB server build artifact.
+- Removed the Hello World example service and its generated registration.
+- Changed the Go module to this repository's path.
+- Replaced the default generated names with values such as `Byte`, `Cache`, `Proxy`, `Socket`, and `Zilla`.
+- Added the Pet `status` enum: `available`, `pending`, and `sold`.
+- Added `GET /petstore/pets/featured`.
+- Added a fixed `Pixel` response for deterministic tests and examples.
 
-on:
-  workflow_dispatch:
+## Customize the mock
 
-jobs:
-  remove:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: mockzilla/actions/codegen@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          delete: true
+The three main files are:
+
+- `pkg/petstore/setup/openapi.yml` defines paths, request bodies, responses, and schemas.
+- `pkg/petstore/setup/context.yml` supplies custom values used for generated data.
+- `pkg/petstore/service.go` overrides generated responses with your own Go logic.
+
+After changing the OpenAPI spec, regenerate the code and service registry.
+
+PowerShell:
+
+```powershell
+go generate ./...
+go run github.com/mockzilla/mockzilla/v2/cmd/gen/discover -output cmd/server/services_gen.go pkg
+go test ./...
 ```
 
-Trigger it manually from the **Actions** tab when you're ready.
+Linux or macOS:
+
+```bash
+make generate
+make discover
+make test
+```
+
+Do not edit `pkg/petstore/gen.go` manually. It is generated from the OpenAPI spec.
+
+## Project structure
+
+```text
+cmd/server/                         Server entry point and service registry
+pkg/petstore/service.go             Optional custom response logic
+pkg/petstore/gen.go                 Generated handlers and types
+pkg/petstore/setup/openapi.yml      Petstore OpenAPI specification
+pkg/petstore/setup/context.yml      Custom generated data values
+pkg/petstore/setup/config.yml       Latency, errors, caching, and upstream settings
+resources/data/app.yml              Server and API Explorer configuration
+.github/workflows/                  CI, release builds, and Mockzilla deployment
+```
+
+## Powered by Mockzilla
+
+[Mockzilla](https://github.com/mockzilla/mockzilla) generates typed Go handlers and realistic mock responses from OpenAPI specifications. This repository is a customized example built from the [Mockzilla codegen template](https://github.com/mockzilla/mockzilla-codegen-template).
+
+The bundled Petstore specification is a sample API for development and testing. This repository is not an official Swagger Petstore project and is not affiliated with or endorsed by SmartBear.
