@@ -39,6 +39,19 @@ func (s *service) AddPet(ctx context.Context, opts *AddPetServiceRequestOptions)
 	return nil, nil
 }
 
+// FindFeaturedPet handles GET /pets/featured
+func (s *service) FindFeaturedPet(ctx context.Context) (*FindFeaturedPetResponseData, error) {
+	tag := "featured"
+	status := PetStatusAvailable
+
+	return NewFindFeaturedPetResponseData(&FindFeaturedPetResponse{
+		Name:   "Pixel",
+		Tag:    &tag,
+		ID:     1001,
+		Status: &status,
+	}), nil
+}
+
 // FindPetByID handles GET /pets/{id}
 func (s *service) FindPetByID(ctx context.Context, opts *FindPetByIDServiceRequestOptions) (*FindPetByIDResponseData, error) {
 	// TODO: Implement your business logic here.

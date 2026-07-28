@@ -125,6 +125,8 @@ type ServiceInterface interface {
 
 	AddPet(ctx context.Context, opts *AddPetServiceRequestOptions) (*AddPetResponseData, error)
 
+	FindFeaturedPet(ctx context.Context) (*FindFeaturedPetResponseData, error)
+
 	FindPetByID(ctx context.Context, opts *FindPetByIDServiceRequestOptions) (*FindPetByIDResponseData, error)
 
 	DeletePet(ctx context.Context, opts *DeletePetServiceRequestOptions) (*DeletePetResponseData, error)
@@ -279,6 +281,58 @@ func (a *HTTPAdapter) AddPet(w http.ResponseWriter, r *http.Request) {
 				a.errHandler.HandleError(w, r, http.StatusInternalServerError, OapiHandlerError{
 					Kind:        OapiErrorKindValidation,
 					OperationID: "AddPet",
+					Message:     fmt.Sprintf("response validation failed: %v", err),
+				})
+				return
+			}
+		}
+	}
+
+	// Apply custom headers from response
+	if resp != nil && resp.Headers != nil {
+		for k, v := range resp.Headers {
+			for _, val := range v {
+				w.Header().Add(k, val)
+			}
+		}
+	}
+
+	// Determine status code
+	status := 200
+	if resp != nil && resp.Status != 0 {
+		status = resp.Status
+	}
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.WriteHeader(status)
+	if resp != nil && resp.Body != nil {
+		_ = json.NewEncoder(w).Encode(resp.Body)
+	}
+}
+
+// FindFeaturedPet handles GET /pets/featured
+func (a *HTTPAdapter) FindFeaturedPet(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Call business logic
+	resp, err := a.svc.FindFeaturedPet(ctx)
+	if err != nil {
+		code := http.StatusInternalServerError
+		if resp != nil && resp.Status != 0 {
+			code = resp.Status
+		}
+		a.errHandler.HandleError(w, r, code, err)
+		return
+	}
+
+	// Validate response
+	if resp != nil && resp.Body != nil {
+		if v, ok := any(resp.Body).(runtime.Validator); ok {
+			if err := v.Validate(); err != nil {
+				a.errHandler.HandleError(w, r, http.StatusInternalServerError, OapiHandlerError{
+					Kind:        OapiErrorKindValidation,
+					OperationID: "FindFeaturedPet",
 					Message:     fmt.Sprintf("response validation failed: %v", err),
 				})
 				return
@@ -503,6 +557,7 @@ func NewRouter(svc ServiceInterface, opts ...RouterOption) chi.Router {
 	adapter := NewHTTPAdapter(svc, cfg.errHandler)
 	r.Method("GET", "/pets", http.HandlerFunc(adapter.FindPets))
 	r.Method("POST", "/pets", http.HandlerFunc(adapter.AddPet))
+	r.Method("GET", "/pets/featured", http.HandlerFunc(adapter.FindFeaturedPet))
 	r.Method("GET", "/pets/{id}", http.HandlerFunc(adapter.FindPetByID))
 	r.Method("DELETE", "/pets/{id}", http.HandlerFunc(adapter.DeletePet))
 
@@ -722,6 +777,27 @@ func (s *generatorService) AddPet(ctx context.Context, opts *AddPetServiceReques
 	return opts.GenerateResponse()
 }
 
+// FindFeaturedPet handles GET /pets/featured
+func (s *generatorService) FindFeaturedPet(ctx context.Context) (*FindFeaturedPetResponseData, error) {
+	// Call user's service first
+	if resp, err := s.service.FindFeaturedPet(ctx); resp != nil || err != nil {
+		return resp, err
+	}
+
+	// Fallback to generator
+	respSchema := s.registry.GetResponseSchema("/pets/featured", "GET")
+	if respSchema == nil {
+		return NewFindFeaturedPetResponseData(nil), nil
+	}
+
+	res := s.generator.Response(respSchema, api.UserContextFromGoContext(ctx))
+	var body FindFeaturedPetResponse
+	if err := api.UnmarshalResponseInto(res.Body, "application/json", &body); err != nil {
+		return nil, err
+	}
+	return NewFindFeaturedPetResponseData(&body).WithHeaders(res.Headers), nil
+}
+
 // FindPetByID handles GET /pets/{id}
 func (s *generatorService) FindPetByID(ctx context.Context, opts *FindPetByIDServiceRequestOptions) (*FindPetByIDResponseData, error) {
 	// Inject GenerateResponse so user service can call it
@@ -898,6 +974,45 @@ func GenerateAddPetRequestBody(ctx map[string]any) (*AddPetBody, error) {
 	return &body, nil
 }
 
+// GenerateFindFeaturedPetResponse generates a mock response for GET /pets/featured.
+// ctx is an optional replacement context for controlling generated values.
+func GenerateFindFeaturedPetResponse(ctx map[string]any) (*FindFeaturedPetResponseData, error) {
+	f, err := GetFactory()
+	if err != nil {
+		return nil, err
+	}
+	res, err := f.Response("/pets/featured", "GET", ctx)
+	if err != nil {
+		return nil, err
+	}
+	var body FindFeaturedPetResponse
+	if err := api.UnmarshalResponseInto(res.Body, "application/json", &body); err != nil {
+		return nil, err
+	}
+	return NewFindFeaturedPetResponseData(&body).WithHeaders(res.Headers), nil
+}
+
+// GenerateFindFeaturedPetResponseBody generates a mock response body for GET /pets/featured.
+// Returns just the typed body without headers or status.
+// ctx is an optional replacement context for controlling generated values.
+func GenerateFindFeaturedPetResponseBody(ctx map[string]any) (*FindFeaturedPetResponse, error) {
+	res, err := GenerateFindFeaturedPetResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return res.Body, nil
+}
+
+// GenerateFindFeaturedPetRequest generates a mock request for GET /pets/featured.
+// ctx is an optional replacement context for controlling generated values.
+func GenerateFindFeaturedPetRequest(ctx map[string]any) (schema.GeneratedRequest, error) {
+	f, err := GetFactory()
+	if err != nil {
+		return schema.GeneratedRequest{}, err
+	}
+	return f.Request("/pets/featured", "GET", ctx)
+}
+
 // GenerateFindPetByIDResponse generates a mock response for GET /pets/{id}.
 // ctx is an optional replacement context for controlling generated values.
 func GenerateFindPetByIDResponse(ctx map[string]any) (*FindPetByIDResponseData, error) {
@@ -1032,6 +1147,30 @@ func (r *AddPetResponseData) WithStatus(code int) *AddPetResponseData {
 	return r
 }
 
+// FindFeaturedPetResponseData wraps the success response with optional headers and status override.
+type FindFeaturedPetResponseData struct {
+	Body    *FindFeaturedPetResponse
+	Headers http.Header
+	Status  int // 0 = use default (200)
+}
+
+// NewFindFeaturedPetResponseData creates a new FindFeaturedPetResponseData with the given body.
+func NewFindFeaturedPetResponseData(body *FindFeaturedPetResponse) *FindFeaturedPetResponseData {
+	return &FindFeaturedPetResponseData{Body: body}
+}
+
+// WithHeaders sets custom headers on the response.
+func (r *FindFeaturedPetResponseData) WithHeaders(h http.Header) *FindFeaturedPetResponseData {
+	r.Headers = h
+	return r
+}
+
+// WithStatus overrides the default status code.
+func (r *FindFeaturedPetResponseData) WithStatus(code int) *FindFeaturedPetResponseData {
+	r.Status = code
+	return r
+}
+
 // FindPetByIDResponseData wraps the success response with optional headers and status override.
 type FindPetByIDResponseData struct {
 	Body    *FindPetByIDResponse
@@ -1105,6 +1244,10 @@ type FindPetsErrorResponse = Error
 type AddPetResponse = Pet
 
 type AddPetErrorResponse = Error
+
+type FindFeaturedPetResponse = Pet
+
+type FindFeaturedPetErrorResponse = Error
 
 type FindPetByIDResponse = Pet
 

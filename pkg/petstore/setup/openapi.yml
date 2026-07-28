@@ -77,6 +77,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /pets/featured:
+    get:
+      description: Returns a fixed featured pet for demonstration purposes
+      operationId: findFeaturedPet
+      responses:
+        '200':
+          description: featured pet response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /pets/{id}:
     get:
       description: Returns a user based on a single ID, if the user does not have access to the pet
