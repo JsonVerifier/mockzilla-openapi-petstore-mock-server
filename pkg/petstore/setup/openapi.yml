@@ -134,6 +134,12 @@ components:
             id:
               type: integer
               format: int64
+            status:
+              type: string
+              enum:
+                - available
+                - pending
+                - sold
 
     NewPet:
       type: object

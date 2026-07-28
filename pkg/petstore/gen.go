@@ -28,6 +28,24 @@ import (
 	"github.com/mockzilla/mockzilla/v2/pkg/typedef"
 )
 
+type PetStatus string
+
+const (
+	PetStatusAvailable PetStatus = "available"
+	PetStatusPending   PetStatus = "pending"
+	PetStatusSold      PetStatus = "sold"
+)
+
+// Validate checks if the PetStatus value is valid
+func (p PetStatus) Validate() error {
+	switch p {
+	case PetStatusAvailable, PetStatusPending, PetStatusSold:
+		return nil
+	default:
+		return runtime.NewValidationErrorsFromString("Enum", fmt.Sprintf("must be a valid PetStatus value, got: %v", p))
+	}
+}
+
 // OapiErrorKind represents the type of error that occurred during request processing.
 type OapiErrorKind int
 
@@ -1203,13 +1221,28 @@ func (o *DeletePetServiceRequestOptions) Validate() error {
 }
 
 type Pet struct {
-	Name string  `json:"name" validate:"required"`
-	Tag  *string `json:"tag,omitempty"`
-	ID   int64   `json:"id"`
+	Name   string     `json:"name" validate:"required"`
+	Tag    *string    `json:"tag,omitempty"`
+	ID     int64      `json:"id"`
+	Status *PetStatus `json:"status,omitempty"`
 }
 
 func (p Pet) Validate() error {
-	return runtime.ConvertValidatorError(typesValidator.Struct(p))
+	var errors runtime.ValidationErrors
+	if err := typesValidator.Var(p.Name, "required"); err != nil {
+		errors = errors.Append("Name", err)
+	}
+	if p.Status != nil {
+		if v, ok := any(p.Status).(runtime.Validator); ok {
+			if err := v.Validate(); err != nil {
+				errors = errors.Append("Status", err)
+			}
+		}
+	}
+	if len(errors) == 0 {
+		return nil
+	}
+	return errors
 }
 
 type NewPet struct {
