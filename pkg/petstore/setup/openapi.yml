@@ -17,6 +17,7 @@ paths:
   /pets:
     get:
       description: Returns all pets, with optional filtering by tags and a result limit
+      operationId: findPets
       parameters:
         - name: tags
           in: query
